@@ -16,11 +16,13 @@ Download the latest build from [Releases](https://github.com/sallen2/canalis/rel
 
 **Windows:** run `canalis-setup-….exe`.
 
-**Linux (Arch / Omarchy):** extract `canalis-…-linux-x64.tar.gz` and run:
+**Linux (Arch / Omarchy, Fedora):** extract `canalis-…-linux-x64.tar.gz` and run:
 
 ```bash
 ./install.sh
 ```
+
+On other distributions, install adb, ffmpeg and lm-sensors first; the installer checks for them.
 
 The installer sets up everything Canalis needs, turns off KANALI's start at login, and starts Canalis when you log in. Uninstall it from Windows' **Installed apps**, or with `uninstall.sh` on Linux; your settings are kept.
 
@@ -51,7 +53,7 @@ The install scripts build Canalis themselves when run from a copy of this reposi
 
 ## Privacy
 
-This program will not transfer any information to other networked systems unless specifically requested by the user or the person installing or operating it. Canalis talks only to the cooler over USB and, on Windows, to LibreHardwareMonitor on `127.0.0.1`. The installers download adb, ffmpeg and LibreHardwareMonitor from their publishers through winget (Windows) or pacman (Linux).
+This program will not transfer any information to other networked systems unless specifically requested by the user or the person installing or operating it. Canalis talks only to the cooler over USB and, on Windows, to LibreHardwareMonitor on `127.0.0.1`. The installers download adb, ffmpeg and LibreHardwareMonitor from their publishers through winget (Windows), or pacman or dnf (Linux).
 
 ## Code signing policy
 

@@ -67,7 +67,9 @@ On the real screen (firmware V1.0.11):
 
 `cargo test` runs the unit tests on Windows, and the code type-checks for `x86_64-unknown-linux-gnu`.
 
-Not tested yet: `install.sh` end to end, and the Waybar tray icon.
+`install.sh` has been run end to end on Fedora 44 (KDE Plasma 6, Wayland) without a screen attached, from a source checkout: dnf installs android-tools and cargo and keeps the RPM Fusion ffmpeg already there, the build needs nothing else, and the service runs, enabled for the desktop session, with its tray icon in Plasma's system tray, which opens the window.
+
+Not tested yet: `install.sh` end to end on Arch, and the Waybar tray icon.
 
 ## Known gaps
 
