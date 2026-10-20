@@ -24,6 +24,9 @@ pub const PRESETS: [&str; 14] = [
     "Pre-set 13: Edge Of Dream",
     "Pre-set 14: Thermal Energy Prohibited",
 ];
+/// The built-in themes stored on the TURRIS 620's screen, named as its files are
+/// (preset/Festival.mp4.h264_1280x720).
+pub const TURRIS_PRESETS: [&str; 5] = ["Cosmos", "Erebos", "Festival", "MechanicalArm", "Meteorite"];
 pub const CUSTOMIZATION: &str = "Customization";
 pub const ROTATIONS: [u16; 4] = [0, 90, 180, 270];
 /// KANALI's Mirror Mode (for left-mounted cases) only switches the screen between these two rotations.
@@ -236,6 +239,11 @@ impl Settings {
         PRESETS.iter().position(|preset| *preset == self.theme)
     }
 
+    /// The TURRIS 620 theme chosen, if the theme is one of `TURRIS_PRESETS`.
+    pub fn turris_preset(&self) -> Option<&'static str> {
+        TURRIS_PRESETS.iter().copied().find(|preset| *preset == self.theme)
+    }
+
     pub fn is_mirrored(&self) -> bool {
         self.rotate == MIRRORED_ROTATION
     }
@@ -268,7 +276,7 @@ impl Settings {
     pub fn validate(&self) -> Result<(), String> {
         require(self.brightness <= 100, "brightness must be between 0 and 100")?;
         require(ROTATIONS.contains(&self.rotate), "rotation must be 0, 90, 180 or 270")?;
-        require(self.theme == CUSTOMIZATION || PRESETS.contains(&self.theme.as_str()), "unknown theme")?;
+        require(self.theme == CUSTOMIZATION || PRESETS.contains(&self.theme.as_str()) || self.turris_preset().is_some(), "unknown theme")?;
         require([CELSIUS, FAHRENHEIT].contains(&self.temperature_unit.as_str()), "unknown temperature unit")?;
         require([SMART_MODE, FIXED_MODE].contains(&self.fan.mode.as_str()), "unknown fan mode")?;
         require(self.fan.fixed_percent <= 100, "fixed fan speed must be between 0 and 100")?;

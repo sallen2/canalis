@@ -29,6 +29,11 @@ impl PageContext<'_> {
         self.status.is_service_running(self.now_millis)
     }
 
+    /// A TURRIS 620 is connected rather than a Panorama.
+    pub fn turris_connected(&self) -> bool {
+        self.connected() && self.status.text("/device/model") == "Turris"
+    }
+
     pub fn temperature_unit(&self) -> String {
         self.editor.settings.temperature_unit.clone()
     }

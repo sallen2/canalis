@@ -1,6 +1,6 @@
 <p align="center"><img src="docs/banner.svg" alt="Canalis: control the TRYX Panorama cooler screen on Windows and Linux" width="100%"></p>
 
-A lightweight replacement for TRYX **KANALI** that controls the **TRYX Panorama** cooler screen on Windows and Linux.
+A lightweight replacement for TRYX **KANALI** that controls the **TRYX Panorama** cooler screen on Windows and Linux, and the **TURRIS 620** air cooler's screen on Linux.
 
 ## Screenshots
 
@@ -32,6 +32,7 @@ Settings can also be changed from a terminal:
 
 ```bash
 canalis preset 12        # built-in theme 1-14
+canalis preset festival  # TURRIS 620: Cosmos, Erebos, Festival, MechanicalArm or Meteorite
 canalis brightness 70
 canalis split a.gif b.png --crop  # one file on each half, cropped to fit
 canalis fan fixed 60     # or: canalis fan smart

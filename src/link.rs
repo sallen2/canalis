@@ -17,14 +17,24 @@ pub enum LinkError {
     Io(io::Error),
     Timeout { acknowledgement: u64 },
     NotFound,
+    /// The Turris didn't answer a query (its command number). Only the Turris, which isn't
+    /// looked for on Windows, gives these two.
+    #[cfg_attr(windows, allow(dead_code))]
+    NoAnswer { command: u32 },
+    /// The Turris answered with an error code.
+    #[cfg_attr(windows, allow(dead_code))]
+    Refused { code: u64, why: String },
 }
 
 impl std::fmt::Display for LinkError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Io(error) => write!(formatter, "serial I/O error: {error}"),
+            Self::Io(error) => write!(formatter, "I/O error: {error}"),
             Self::Timeout { acknowledgement } => write!(formatter, "screen did not answer (waiting for AckNumber={acknowledgement})"),
-            Self::NotFound => write!(formatter, "no TRYX Panorama found (USB 18d1:2d03)"),
+            Self::NotFound if cfg!(windows) => write!(formatter, "no TRYX Panorama found (USB 18d1:2d03)"),
+            Self::NotFound => write!(formatter, "no TRYX Panorama (USB 18d1:2d03) or Turris (USB 391a:2011) found"),
+            Self::NoAnswer { command } => write!(formatter, "screen did not answer request {command}"),
+            Self::Refused { code, why } => write!(formatter, "screen refused the request (code {code}: {why})"),
         }
     }
 }

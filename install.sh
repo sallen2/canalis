@@ -69,7 +69,7 @@ install_udev_rule() {
   echo "==> Installing udev rule for the screen (sudo)"
   sudo install -m 644 "$SOURCE_DIRECTORY/packaging/70-tryx-panorama.rules" /etc/udev/rules.d/
   sudo udevadm control --reload
-  sudo udevadm trigger --subsystem-match=tty --subsystem-match=usb
+  sudo udevadm trigger --subsystem-match=tty --subsystem-match=usb --subsystem-match=usbmisc
 }
 
 install_desktop_entry() {

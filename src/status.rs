@@ -79,6 +79,11 @@ impl LiveStatus {
             Some(other) => other.to_string(),
         }
     }
+
+    /// The strings of a list, e.g. the presets a Turris stores.
+    pub fn list(&self, pointer: &str) -> Vec<String> {
+        self.value.pointer(pointer).and_then(Value::as_array).map(|items| items.iter().filter_map(|item| item.as_str().map(String::from)).collect()).unwrap_or_default()
+    }
 }
 
 /// Reloads the status file whenever it changes on disk.

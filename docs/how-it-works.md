@@ -1,6 +1,6 @@
 # How Canalis works
 
-Notes on the TRYX Panorama screen and on KANALI, for anyone working on Canalis.
+Notes on the TRYX Panorama and TURRIS 620 screens and on KANALI, for anyone working on Canalis.
 
 ## Files
 
@@ -56,6 +56,28 @@ KANALI reads its stats through the HWiNFO SDK: `lib\BYMonitor64.dll` is HWiNFO's
 | `service_control/` | start/stop and start at login (systemd, or the Windows Run key) |
 | `tray/` | the service's tray icon (Windows notification area, or StatusNotifierItem on Linux) |
 | `ui/` | the window |
+| `turris/` | the TURRIS 620's screen (Linux): framing, messages, the stats overlay, and its USB printer device |
+
+## The TURRIS 620's screen
+
+The TURRIS 620 air cooler's screen (USB `391a:2011`, 5" 1280×720, product name "Turris") works differently from the Panorama's. It is a small Linux device (kernel 5.10, screen app v1.0.2) that connects as a bidirectional USB printer: the kernel's usblp driver makes it `/dev/usb/lp*`, and the udev rule adds `/dev/tryx-turris` and gives the desktop user access. Canalis reads and writes that device, so no adb, serial port or USB library is involved; it is supported on Linux only. The protocol follows the notes in [DXVSI/Tryx-Linux-GUI](https://github.com/DXVSI/Tryx-Linux-GUI) (MIT licence), checked against a TURRIS 620.
+
+Each message is `TRYX`, the payload's size (u32, little-endian), and the payload: a protobuf request or response with a header (a version, and a track id that the answer repeats) and one field whose number says what the message is:
+
+| Field | Message |
+|---|---|
+| 10 | ping, answered with a pong; Canalis pings every 2 s |
+| 100, 103, 104 | queries for the device information, the stored media and the user configuration |
+| 200 | user configuration: the media it plays, backlight, brightness and mirror mode (not answered) |
+| 201 | overlay layout: groups of labels with their place, alignment, font, size and colour (not answered) |
+| 300 | stat values: new texts for the layout's labels (not answered) |
+| 402 | end of a file transfer; sent with no file, it restarts playback |
+
+- **Themes:** the screen stores five, under `preset/`: Cosmos, Erebos, Festival, MechanicalArm and Meteorite. Choosing one writes the user configuration, then the layout, then the end of a file transfer with no file, which restarts playback, as DXVSI's `restartTurrisPlayback` does. Canalis edits a copy of the configuration the screen reports and writes all of it back, so what it doesn't use (the power-on and standby media, the filter) is kept, and it only writes when the theme or a display setting changed.
+- **Stats:** the layout is sent once, then only the changing texts, every second. It follows KANALI's Turris layout as DXVSI recorded it, with KANALI's group and label ids: a row per stat, its title above the value and unit, rows spread evenly down the screen, and the CPU and GPU badges along the top. Canalis's three stats that KANALI doesn't offer on the Turris (CPU and GPU voltage, motherboard temperature) continue the numbering. The text is larger than KANALI's 15 for titles and 120 for values, which makes titles about 1.3 mm tall at the screen's 294 PPI: one or two rows use 42 / 180 / 50 (title / value / unit) with badges of 36, the size picked by comparing several on the screen, and three rows use 32 / 136 / 38 with badges of 30 so they don't overlap.
+- "Black screen while the PC sleeps" and the fan settings belong to the Panorama, so the window hides them while a Turris is connected.
+
+`src/turris/messages.rs` tests the decoders against answers captured from the screen.
 
 ## Tested
 
@@ -64,6 +86,8 @@ On the real screen (firmware V1.0.11):
 - **Linux (Omarchy):** the service runs from systemd `--user`, connects on `/dev/ttyACM0`, applies settings and keeps the screen fed from the hwmon sensor readers. The carousel fills in from the screen's own theme videos, and its centre card plays one. Only one program can hold the serial port, so another controller for the same screen has to be stopped first.
 - Brightness changes made from the command line reach the screen within a second, and invalid values are refused and not saved.
 - The preview pulls the GIF already on the screen over adb and plays it, with the stats in the same order and layout as the screen. Live view shows real screenshots of the screen, even with another (offline) adb device attached. The carousel takes all 14 theme pictures off the screen, and from KANALI 1.2.1 when one is installed; the card in the centre plays that theme's video. The built-in-theme message matches the one KANALI sent for Pre-set 12 with Rain, a CPU badge and Date & Time, which the screen accepted.
+
+On a TURRIS 620 (screen app v1.0.2) on Fedora 44 (KDE Plasma 6, Wayland): the service finds the screen on `/dev/usb/lp0`, and the window shows it as connected and lists its five themes. Switching between the five themes, brightness, screen off and on, and mirror mode all reach the screen. Live stats show in one, two or three rows, left- or right-aligned, with the CPU and GPU badges, in °C or °F, including the three stats KANALI doesn't offer on the Turris. Settings changed in the window or from the command line apply within a second, and the service uses about 0.5% of one CPU core and 12 MB of memory. Centre alignment hasn't been checked on the screen.
 
 `cargo test` runs the unit tests on Windows, and the code type-checks for `x86_64-unknown-linux-gnu`.
 
@@ -74,4 +98,5 @@ Not tested yet: `install.sh` end to end, and the Waybar tray icon.
 - **"turboPump" warning:** the firmware logs `config JSONException--No value for turboPump`. KANALI's own `false` value causes a similar error. Settings still apply.
 - **Stats that need special access:** CPU voltage and memory speed are sent as 0. On Linux, CPU power is sent as 0 unless RAPL is readable; on Windows, temperatures, fans and CPU power need LibreHardwareMonitor.
 - **Windows command line:** `canalis.exe` is a windowed program, so `cmd` doesn't wait for it and its exit code isn't reported. Output still appears.
+- **TURRIS 620:** your own images, GIFs and videos can't be sent to it yet (its file transfer isn't implemented, and the Customization tab says so), and it works on Linux only.
 - **Not implemented:** firmware updates, the KANALI cloud connection, "turbo pump" mode, and these KANALI PANORAMA features: screen recording to make new media, the Low/Mid/High/Full fan speed profiles (Canalis offers their curves as starting points instead), and playing a theme's video full screen on hover (the carousel's centre card plays it in place instead).

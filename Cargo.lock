@@ -680,6 +680,7 @@ dependencies = [
  "egui_extras",
  "image",
  "ksni",
+ "libc",
  "resvg",
  "rfd",
  "serde",

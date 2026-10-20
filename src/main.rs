@@ -18,6 +18,8 @@ mod settings;
 mod status;
 mod theme_video;
 mod tray;
+#[cfg(not(windows))]
+mod turris;
 mod ui;
 #[cfg(windows)]
 mod windows_process;

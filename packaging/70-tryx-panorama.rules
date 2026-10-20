@@ -2,3 +2,6 @@
 # Grants the logged-in desktop user access and keeps ModemManager away from the serial port.
 SUBSYSTEM=="tty", ATTRS{idVendor}=="18d1", ATTRS{idProduct}=="2d03", TAG+="uaccess", ENV{ID_MM_DEVICE_IGNORE}="1", SYMLINK+="tryx-panorama"
 SUBSYSTEM=="usb", ATTR{idVendor}=="18d1", ATTR{idProduct}=="2d03", TAG+="uaccess"
+# TRYX Turris, the TURRIS 620's screen (USB 391a:2011): a USB printer that the usblp driver
+# makes /dev/usb/lp*. Grants the logged-in desktop user access.
+SUBSYSTEM=="usbmisc", KERNEL=="lp[0-9]*", ATTRS{idVendor}=="391a", ATTRS{idProduct}=="2011", TAG+="uaccess", SYMLINK+="tryx-turris"

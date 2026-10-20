@@ -2,7 +2,7 @@
 
 use crate::crop::{MediaUpload, Shape};
 use crate::media::AdbScreen;
-use crate::settings::{ALIGNMENTS, CELSIUS, CUSTOMIZATION, FAHRENHEIT, FIXED_MODE, PRESETS, SMART_MODE, Settings, SettingsStore};
+use crate::settings::{ALIGNMENTS, CELSIUS, CUSTOMIZATION, FAHRENHEIT, FIXED_MODE, PRESETS, SMART_MODE, Settings, SettingsStore, TURRIS_PRESETS};
 use clap::{Parser, Subcommand, ValueEnum};
 use std::path::PathBuf;
 
@@ -44,7 +44,7 @@ pub enum Command {
     SleepDisplay { state: Switch },
     /// Temperature units
     Units { unit: Unit },
-    /// Choose a built-in theme (1-7) or "custom"
+    /// Choose a built-in theme: 1-14 (Panorama), a name (TURRIS 620), or "custom"
     Preset { choice: String },
     /// Show your own images/GIFs/videos (copied to the screen over adb)
     Custom {
@@ -114,7 +114,8 @@ pub fn run_settings_command(command: Command, store: &SettingsStore) -> Result<S
 
 fn presets_listing() -> String {
     let presets: Vec<String> = PRESETS.iter().enumerate().map(|(index, name)| format!("{}  {name}", index + 1)).collect();
-    presets.join("\n") + "\ncustom  your own media (canalis custom FILE, or canalis split LEFT RIGHT)"
+    let turris = TURRIS_PRESETS.join(", ");
+    presets.join("\n") + "\ncustom  your own media (canalis custom FILE, or canalis split LEFT RIGHT)\n\nTURRIS 620, by name: " + &turris
 }
 
 fn update(store: &SettingsStore, change: impl FnOnce(&mut Settings) -> Result<(), String>) -> Result<(), String> {
@@ -142,9 +143,13 @@ fn theme_from_choice(choice: &str) -> Result<String, String> {
     if choice.eq_ignore_ascii_case("custom") {
         return Ok(CUSTOMIZATION.into());
     }
+    let squeezed: String = choice.chars().filter(|character| !character.is_whitespace()).collect();
+    if let Some(preset) = TURRIS_PRESETS.iter().find(|preset| preset.eq_ignore_ascii_case(&squeezed)) {
+        return Ok((*preset).into());
+    }
     match choice.parse::<usize>() {
         Ok(number) if (1..=PRESETS.len()).contains(&number) => Ok(PRESETS[number - 1].into()),
-        _ => Err(format!("choose 1-{} or 'custom' (see: canalis presets)", PRESETS.len())),
+        _ => Err(format!("choose 1-{}, a TURRIS 620 theme by name, or 'custom' (see: canalis presets)", PRESETS.len())),
     }
 }
 
@@ -239,6 +244,16 @@ mod tests {
         run(&store, &["preset", "custom"]).unwrap();
         run(&store, &["overlay", "CPU Temperature", "GPU Temperature"]).unwrap();
         assert_eq!(store.load().unwrap().custom.overlay, ["CPU Temperature", "GPU Temperature"]);
+    }
+
+    #[test]
+    fn turris_presets_by_name() {
+        let store = SettingsStore::new(temporary_path("cli-turris-preset"));
+        run(&store, &["preset", "festival"]).unwrap();
+        assert_eq!(store.load().unwrap().theme, "Festival");
+        run(&store, &["preset", "Mechanical Arm"]).unwrap();
+        assert_eq!(store.load().unwrap().theme, "MechanicalArm");
+        assert!(run(&store, &["preset", "Nebula"]).is_err());
     }
 
     #[test]

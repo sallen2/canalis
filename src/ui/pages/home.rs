@@ -280,36 +280,44 @@ fn specifications(ui: &mut Ui, page: &PageContext) {
 
 /// Returns the card's height so the card beside it can match.
 fn panorama_card(ui: &mut Ui, page: &PageContext, width: f32) -> f32 {
+    let turris = page.turris_connected();
     let response = ui.allocate_ui(vec2(width, 0.0), |ui| {
         card(ui, |ui| {
-            ui.label(bold("Panorama", 19.0));
+            ui.label(bold(if turris { "Turris" } else { "Panorama" }, 19.0));
             ui.add_space(10.0);
-            device_identity(ui, page.status);
+            device_identity(ui, page.status, turris);
             ui.add_space(6.0);
             divider(ui);
             ui.add_space(6.0);
-            device_readings(ui, page);
+            device_readings(ui, page, turris);
         });
     });
     response.response.rect.height()
 }
 
-fn device_identity(ui: &mut Ui, status: &LiveStatus) {
+fn device_identity(ui: &mut Ui, status: &LiveStatus, turris: bool) {
+    let screen = status.text("/device/screen");
     info_line(ui, "Model", &or_dash(true, status.text("/device/productId")));
-    info_line(ui, "Screen", "2240 × 1080");
+    info_line(ui, "Screen", if screen.is_empty() { "2240 × 1080" } else { &screen });
     info_line(ui, "System", &or_dash(true, status.text("/device/OS")));
     info_line(ui, "Firmware", &or_dash(true, status.text("/device/version/firmware")));
-    info_line(ui, "Hardware", &or_dash(true, status.text("/device/version/hardware")));
-    info_line(ui, "Screen app", &or_dash(true, status.text("/device/version/app")));
+    if !turris {
+        info_line(ui, "Hardware", &or_dash(true, status.text("/device/version/hardware")));
+        info_line(ui, "Screen app", &or_dash(true, status.text("/device/version/app")));
+    }
     info_line(ui, "Serial number", &or_dash(true, status.text("/device/sn")));
-    info_line(ui, "Serial port", &or_dash(true, status.text("/port")));
+    info_line(ui, if turris { "USB device" } else { "Serial port" }, &or_dash(true, status.text("/port")));
 }
 
-fn device_readings(ui: &mut Ui, page: &PageContext) {
+fn device_readings(ui: &mut Ui, page: &PageContext, turris: bool) {
     let (status, connected) = (page.status, page.connected());
-    info_line(ui, "Pump-head fan", &rpm(status.number("/device_status/status/fanLCD"), connected));
-    info_line(ui, "Pump", &rpm(status.number("/device_status/status/turboPump"), connected));
-    info_line(ui, "Free storage", &or_dash(connected, format::bytes_as_gigabytes(status.number("/device_status/availableStorage"))));
+    if !turris {
+        info_line(ui, "Pump-head fan", &rpm(status.number("/device_status/status/fanLCD"), connected));
+        info_line(ui, "Pump", &rpm(status.number("/device_status/status/turboPump"), connected));
+        info_line(ui, "Free storage", &or_dash(connected, format::bytes_as_gigabytes(status.number("/device_status/availableStorage"))));
+    } else {
+        info_line(ui, "Built-in themes", &status.list("/device/presets").len().to_string());
+    }
     let error = status.text("/error");
     if !connected && !error.is_empty() {
         ui.add_space(8.0);

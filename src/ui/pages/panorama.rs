@@ -5,7 +5,7 @@ use super::PageContext;
 use crate::media::SUPPORTED_EXTENSIONS;
 use crate::settings::{
     ALIGNMENTS, CELSIUS, CPU_BADGE, CUSTOMIZATION, CustomTheme, DARK_TEXT, FAHRENHEIT, FILTERS, FIXED_MODE, FanCurvePreset, Filter, GPU_BADGE, LIGHT_TEXT,
-    MAX_OVERLAY_FIELDS, OVERLAY_FIELDS, OverlayStyle, PLAY_MODES, PRESETS, SMART_MODE, Settings, badge_is_available,
+    MAX_OVERLAY_FIELDS, OVERLAY_FIELDS, OverlayStyle, PLAY_MODES, PRESETS, SMART_MODE, Settings, TURRIS_PRESETS, badge_is_available,
 };
 use crate::crop::Shape;
 use crate::ui::carousel::Carousel;
@@ -47,18 +47,69 @@ impl PanoramaPage {
 const HALF_NAMES: [&str; 2] = ["Left half", "Right half"];
 
 pub fn show(ui: &mut Ui, state: &mut PanoramaPage, page: &mut PageContext) {
-    page_header(ui, "PANORAMA");
-    let options = [(PanoramaTab::Presets, "Pre-set"), (PanoramaTab::Customization, "Customization"), (PanoramaTab::Screen, "Screen"), (PanoramaTab::Fan, "Fan")];
+    let turris = page.turris_connected();
+    page_header(ui, if turris { "TURRIS" } else { "PANORAMA" });
+    let mut options = vec![(PanoramaTab::Presets, "Pre-set"), (PanoramaTab::Customization, "Customization"), (PanoramaTab::Screen, "Screen")];
+    if turris {
+        // The fan settings are the Panorama pump head's; the TURRIS 620's fans are the board's.
+        if state.tab == PanoramaTab::Fan {
+            state.tab = PanoramaTab::Presets;
+        }
+    } else {
+        options.push((PanoramaTab::Fan, "Fan"));
+    }
     tabs(ui, &mut state.tab, &options);
     page_scroll(ui, |ui| match state.tab {
+        PanoramaTab::Presets if turris => turris_preset_tab(ui, page),
         PanoramaTab::Presets => preset_tab(ui, &mut state.carousel, page),
+        PanoramaTab::Customization if turris => turris_customization_note(ui),
         PanoramaTab::Customization => customization_tab(ui, state, page),
-        PanoramaTab::Screen => screen_settings(ui, &mut page.editor.settings),
+        PanoramaTab::Screen => screen_settings(ui, &mut page.editor.settings, turris),
         PanoramaTab::Fan => fan_settings(ui, page),
     });
     if let Some(uploads) = state.cropper.show(ui.ctx()) {
         page.jobs.add_media(uploads, ui.ctx());
     }
+}
+
+/// The TURRIS 620 keeps its built-in themes on the screen itself; they are listed by name.
+fn turris_preset_tab(ui: &mut Ui, page: &mut PageContext) {
+    let stored: Vec<String> = page.status.list("/device/presets");
+    card(ui, |ui| {
+        ui.label(bold("Pre-set", 19.0));
+        ui.label(muted("The themes stored on the TURRIS 620's screen. Click one to show it."));
+        ui.add_space(10.0);
+        ui.horizontal_wrapped(|ui| {
+            for preset in TURRIS_PRESETS.iter().filter(|preset| stored.is_empty() || stored.iter().any(|name| name == *preset)) {
+                let selected = page.editor.settings.theme == *preset;
+                if pill(ui, &spaced_words(preset), selected).clicked() {
+                    page.editor.settings.theme = (*preset).into();
+                }
+            }
+        });
+    });
+    ui.add_space(14.0);
+    let settings = &mut page.editor.settings;
+    stats_card(ui, "", &mut settings.overlay, &mut settings.overlay_style);
+}
+
+fn turris_customization_note(ui: &mut Ui) {
+    card(ui, |ui| {
+        ui.label(bold("Customization", 19.0));
+        ui.label(muted("Your own images, GIFs and videos can't be sent to the TURRIS 620 yet. Choose one of its built-in themes in Pre-set."));
+    });
+}
+
+/// "MechanicalArm" -> "Mechanical Arm".
+fn spaced_words(name: &str) -> String {
+    let mut spaced = String::new();
+    for (index, character) in name.char_indices() {
+        if index > 0 && character.is_uppercase() {
+            spaced.push(' ');
+        }
+        spaced.push(character);
+    }
+    spaced
 }
 
 fn preset_tab(ui: &mut Ui, carousel: &mut Carousel, page: &mut PageContext) {
@@ -318,7 +369,7 @@ fn overlay_chip(ui: &mut Ui, overlay: &mut Vec<String>, field: &str) {
     }
 }
 
-fn screen_settings(ui: &mut Ui, settings: &mut Settings) {
+fn screen_settings(ui: &mut Ui, settings: &mut Settings, turris: bool) {
     card(ui, |ui| {
         setting_row(ui, "Screen display", "Turn the cooler's screen on or off.", |ui| {
             toggle(ui, &mut settings.enable);
@@ -326,20 +377,27 @@ fn screen_settings(ui: &mut Ui, settings: &mut Settings) {
         setting_row(ui, "Brightness", "", |ui| {
             ui.add(egui::Slider::new(&mut settings.brightness, 0..=100).suffix("%"));
         });
-        setting_row(ui, "Mirror mode", "A mirror image of the screen for left-mounted cases. The cooler restarts when this changes.", |ui| {
+        let mirror_description = if turris {
+            "A mirror image of the screen for left-mounted cases."
+        } else {
+            "A mirror image of the screen for left-mounted cases. The cooler restarts when this changes."
+        };
+        setting_row(ui, "Mirror mode", mirror_description, |ui| {
             let mut mirrored = settings.is_mirrored();
             if toggle(ui, &mut mirrored) {
                 settings.set_mirrored(mirrored);
             }
         });
-        setting_row(
-            ui,
-            "Black screen while the PC sleeps",
-            "On: the screen goes dark when the PC is off or the app is closed. Off: it shows a sleep animation.",
-            |ui| {
-                toggle(ui, &mut settings.display_in_sleep);
-            },
-        );
+        if !turris {
+            setting_row(
+                ui,
+                "Black screen while the PC sleeps",
+                "On: the screen goes dark when the PC is off or the app is closed. Off: it shows a sleep animation.",
+                |ui| {
+                    toggle(ui, &mut settings.display_in_sleep);
+                },
+            );
+        }
         setting_row(ui, "Temperature unit", "", |ui| {
             let options = [(FAHRENHEIT.to_string(), "°F".to_string()), (CELSIUS.to_string(), "°C".to_string())];
             segmented(ui, &mut settings.temperature_unit, &options);
